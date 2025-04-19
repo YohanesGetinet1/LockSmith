@@ -8,8 +8,10 @@ import {
 } from 'lucide-react';
 import { useForm } from "react-hook-form";
 import useWeb3Forms from "@web3forms/react";
+import { ToastContainer, toast } from 'react-toastify'
 
 function App() {
+  const [result, setResult] = useState("");
   const [activeSection, setActiveSection] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<{
@@ -25,6 +27,12 @@ function App() {
     message: string;
     type: 'success' | 'error' | null;
   }>({ message: '', type: null });
+
+  // alert functions
+  const notify = (val:any) => toast.success(`Dear ${val}, Your inquirie has been submitted successfully We will get back to you soon!`);
+  const warn = (name:string, error: string) => {
+    toast.error(`Dear ${name}, ${error}`);
+  };
 
   const services = [
     { 
@@ -105,6 +113,38 @@ function App() {
       <span className="text-blue-100">{text}</span>
     </div>
   );
+
+  // form submit 
+  const formSubmit = async (e:any) => {
+    e.preventDefault()
+    setResult("Sending....");
+    const formData = new FormData(e.target);
+    formData.append("access_key", "6ca09003-a01b-4db8-b376-434b9a71a498")
+    // console.log("Form Data:", Object.fromEntries(formData));
+
+    const response = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      setResult("Form Submitted Successfully");
+      e.target.reset();
+      console.log(data['data'], data['message'])
+      notify(data['data']['name'])
+    } else {
+      console.log("Error", data);
+      setResult(data.message);
+      const err = data['message']
+      const name = data['data']['name']
+      console.log(err)
+      warn(name, err)
+    }
+
+  }
+
+  // ends here 
 
   const ServiceModal: React.FC<{ service: typeof services[0] | null; onClose: () => void }> = ({ service, onClose }) => {
     if (!service) return null;
@@ -697,66 +737,7 @@ function App() {
             >
               <form 
                 className="space-y-6" 
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  
-                  const form = e.currentTarget;
-                  const formData = new FormData(form);
-                  
-                  formData.append("access_key", "6ca09003-a01b-4db8-b376-434b9a71a498");
-                  
-                  // Log form data for debugging
-                  console.log("Form Data:", Object.fromEntries(formData));
-                  
-                  try {
-                    const response = await fetch("https://web3forms.com/submit", {
-                      method: "POST",
-                      body: formData,
-                    });
-                    
-                    if (!response.ok) {
-                      throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
-                    }
-                    
-                    let data: any = null;
-try {
-  data = await response.json();
-} catch (jsonError) {
-  const rawText = await response.text(); // fallback to raw text for debugging
-  console.warn("Could not parse JSON. Raw response:", rawText);
-}
-
-                    
-                    // Log the full response for debugging
-                    console.log("API Response:", data);
-                    
-                    if (response.ok && data?.success) {
-                      setFormStatus({ message: "Message sent successfully!", type: "success" });
-                      form.reset();
-                      setTimeout(() => setFormStatus({ message: "", type: null }), 5000);
-                    } else {
-                      setFormStatus({ 
-                        message: data?.message || "Something went wrong. Please try again.", 
-                        type: "error" 
-                      });
-                      console.error("Form submission error:", data);
-                    }                    
-                  } catch (error) {
-                    if (error instanceof Error) {
-                      setFormStatus({ 
-                        message: `Failed to submit form: ${error.message || "Network error. Please try again later."}`, 
-                        type: "error" 
-                      });
-                      console.error("Fetch error:", error);
-                    } else {
-                      setFormStatus({ 
-                        message: "Failed to submit form: An unknown error occurred.", 
-                        type: "error" 
-                      });
-                      console.error("Unknown error:", error);
-                    }
-                  }
-                }}
+                onSubmit={(e) => formSubmit(e)}
               >
                 <AnimatePresence>
                   {formStatus.message && (
@@ -862,6 +843,7 @@ try {
           </div>
         </div>
       </footer>
+      <ToastContainer />
     </div>
   );
 }
